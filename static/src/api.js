@@ -4,6 +4,11 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
+const fetchOptions = {
+  credentials: 'include',
+  headers
+};
+
 async function fetchAPI(endpoint, method = 'GET', body) {
   const options = {
     method,
@@ -14,7 +19,7 @@ async function fetchAPI(endpoint, method = 'GET', body) {
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, options);
+  const response = await fetch(`${BASE_URL}${endpoint}`, { ...options, ...fetchOptions });
 
   if (!response.ok) {
     let errorMessage = 'An error occurred';
@@ -29,6 +34,25 @@ async function fetchAPI(endpoint, method = 'GET', body) {
   return response.json();
 }
 
+// Register a new user
+export const registerUser = async (email, password) => {
+  return fetchAPI('/register', 'POST', {email, password});
+}
+
+// Login a user
+export const loginUser = async (email, password) => {
+  return fetchAPI('/login', 'POST', {email, password});
+}
+
+// Logout the current user
+export const logoutUser = async () => {
+  return fetchAPI('/logout', 'POST');
+}
+
+// Get details of the current user
+export const getCurrentUser = async () => {
+  return fetchAPI('/current_user', 'GET');
+}
 
 export const getTheatres = async () => {
   const response = await fetchAPI('/theatres');

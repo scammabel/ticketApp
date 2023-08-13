@@ -1,4 +1,4 @@
 Flask
 flask flask-sqlalchemy
 Flask-Security-Too
-
+flask-restful

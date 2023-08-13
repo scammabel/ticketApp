@@ -1,28 +1,27 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask_security import RoleMixin, UserMixin
 
 db = SQLAlchemy()
 
-def create_default_user():
-    user = User.query.filter_by(username='testuser').first()
-    if not user:
-        default_user = User(
-            username='testuser',
-            password='testpassword',
-            email='test@email.com',
-            active=True
-        )
-        db.session.add(default_user)
-        db.session.commit()
-        print("Test user created!")
-    else:
-        print("Test user already exists!")
+
+class Role(db.Model, RoleMixin):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+
+roles_users = db.Table('roles_users',
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+    db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
+)
 
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False)
     password = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    fs_uniquifier = db.Column(db.String(255), unique=True, nullable=False)
+    roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
     active = db.Column(db.Boolean, default=True)
 
     def serialize(self):
@@ -30,8 +29,17 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'roles': [role.name for role in self.roles],  # Serializing roles
             'active': self.active
         }
+
+    
+    def has_role(self, role_name):
+        return role_name in [role.name for role in self.roles]
+    
+    def get_security_payload(self):
+        return {"id": self.id, "username": self.username, "email": self.email}
+
 
 
 class Theatre(db.Model):
@@ -114,3 +122,14 @@ class Booking(db.Model):
             'showtime': self.showtime.serialize() if self.showtime else None  # Assuming Showtime model has a serialize method
         }
 
+
+from flask_security.utils import hash_password
+
+def ensure_admin_exists():
+    if not User.query.filter_by(email="admin@gmail.com").first():
+        admin_role = Role(name="admin")
+        db.session.add(admin_role)
+        admin = User(email="admin@gmail.com", password=hash_password("admin"))
+        admin.roles.append(admin_role)
+        db.session.add(admin)
+        db.session.commit()

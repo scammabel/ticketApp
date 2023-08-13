@@ -1,10 +1,12 @@
 from flask import Flask, request, render_template
 from flask_restful import Api, Resource, reqparse
-from .models import db, Theatre, Show, Showtime, Booking, User
+from .models import db, Theatre, Show, Showtime, Booking, User, Role
 from datetime import datetime
+import uuid
 
+from flask_security import roles_required,login_required, login_user, logout_user, verify_password, current_user
 
-def register_routes(app):
+def register_routes(app, user_datastore):
 
     api = Api(app)
 
@@ -13,6 +15,7 @@ def register_routes(app):
         return render_template('index.html')
 
     class TheatreResource(Resource):
+
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('name', required=True, help="Name cannot be blank!")
@@ -49,6 +52,7 @@ def register_routes(app):
 
             return {'message': 'Theatre updated successfully'}, 200
 
+        @roles_required('admin')
         def delete(self, theatre_id):
             theatre = Theatre.query.get_or_404(theatre_id)
             db.session.delete(theatre)
@@ -66,7 +70,7 @@ def register_routes(app):
 
     
     class ShowResource(Resource):
-    
+        
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('name', required=True, help="Name cannot be blank!")
@@ -84,6 +88,7 @@ def register_routes(app):
             db.session.commit()
 
             return {'message': 'Show created successfully', 'id': show.id}, 201
+
 
         def put(self, show_id):
             show = Show.query.get_or_404(show_id)
@@ -106,6 +111,7 @@ def register_routes(app):
             db.session.commit()
 
             return {'message': 'Show updated successfully'}, 200
+
 
         def delete(self, show_id):
             show = Show.query.get_or_404(show_id)
@@ -135,6 +141,7 @@ def register_routes(app):
                 return {'shows': [show.serialize() for show in shows]}
 
     class ShowtimeResource(Resource):
+        
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('show_id', type=int, required=True, help="Show ID cannot be blank!")
@@ -176,12 +183,9 @@ def register_routes(app):
     class BookingResource(Resource):
         def post(self):
             parser = reqparse.RequestParser()
-            # Remove this line if you always want to use the default user
-            # parser.add_argument('user_id', type=int, required=True, help="User ID cannot be blank!")
             parser.add_argument('showtime_id', type=int, required=True, help="Showtime ID cannot be blank!")
             parser.add_argument('number_of_tickets', type=int, required=True, help="Number of tickets cannot be blank!")
-            default_user = User.query.filter_by(username='testuser').first()
-
+            
             args = parser.parse_args()
 
             # Check availability considering existing bookings
@@ -190,41 +194,118 @@ def register_routes(app):
             if showtime.theatre.capacity - existing_tickets < args['number_of_tickets']:
                 return {'message': 'Not enough tickets available'}, 400
 
-            booking = Booking(user_id=default_user.id, showtime_id=args['showtime_id'], number_of_tickets=args['number_of_tickets'], booking_time=datetime.now(), status='confirmed')
+            booking = Booking(user_id=current_user.id, showtime_id=args['showtime_id'], number_of_tickets=args['number_of_tickets'], booking_time=datetime.now(), status='confirmed')
             db.session.add(booking)
             db.session.commit()
 
             return {'message': 'Booking successful', 'booking': booking.serialize()}, 201
 
-
         def get(self, booking_id=None):
-            default_user = User.query.filter_by(username='testuser').first()
             if booking_id:
                 booking = Booking.query.get_or_404(booking_id)
-                # Ensure the booking belongs to the default user
-                if booking.user_id != default_user.id:
+                # Ensure the booking belongs to the logged-in user
+                if booking.user_id != current_user.id:
                     return {'message': 'Unauthorized'}, 403
                 return {'booking': booking.serialize()}
             else:
-                # Fetch all bookings for the default user
-                bookings = Booking.query.filter_by(user_id=default_user.id).all()
+                # Fetch all bookings for the logged-in user
+                bookings = Booking.query.filter_by(user_id=current_user.id).all()
                 return {'bookings': [booking.serialize() for booking in bookings]}
 
-        def delete(self, booking_id):
-            default_user = User.query.filter_by(username='testuser').first()            
+        def delete(self, booking_id):          
             booking = Booking.query.get_or_404(booking_id)
 
-            # Ensure the booking belongs to the default user
-            if booking.user_id != default_user.id:
+            # Ensure the booking belongs to the logged-in user
+            if booking.user_id != current_user.id:
                 return {'message': 'Unauthorized'}, 403
 
             booking.status = 'cancelled'
             db.session.commit()
 
             return {'message': 'Booking cancelled successfully'}, 200
+        
+
+
+    class UserRegistrationResource(Resource):
+        def post(self):
+            parser = reqparse.RequestParser()
+            parser.add_argument('email', required=True, help="Email cannot be blank!")
+            parser.add_argument('password', required=True, help="Password cannot be blank!")
+            
+            args = parser.parse_args()
+            
+            # Check if user already exists
+            existing_user = User.query.filter_by(email=args['email']).first()
+            if existing_user:
+                return {'message': 'A user with that email already exists'}, 400
+            
+            # Extract the username from the email
+            username = args['email'].split('@')[0]
+            
+            # Generate a unique fs_uniquifier using UUID
+            fs_uniquifier = str(uuid.uuid4())
+            
+            # Create a new user
+            user = User(username=username, email=args['email'], password=args['password'], fs_uniquifier=fs_uniquifier)
+
+            default_role = Role.query.filter_by(name='user').first()
+            if default_role:
+                user.roles.append(default_role)
+            else:
+                return {'message': 'Default role not found. Please ensure roles are set up correctly.'}, 500
+
+
+            db.session.add(user)
+            db.session.commit()
+
+            return {'message': 'User registered successfully'}, 201
+
+
+
+
+    class UserLoginResource(Resource):
+        def post(self):
+            parser = reqparse.RequestParser()
+            parser.add_argument('email', required=True, help="Email cannot be blank!")
+            parser.add_argument('password', required=True, help="Password cannot be blank!")
+                
+            args = parser.parse_args()
+                
+                # Authenticate user using Flask-Security
+            user = user_datastore.find_user(email=args['email'])
+            if user and verify_password(args['password'], user.password):
+                login_user(user)
+                return {'message': 'Logged in successfully'}, 200
+            else:
+                return {'message': 'Invalid email or password'}, 401
+
+ 
+    class UserLogoutResource(Resource):
+        @login_required
+        def post(self):
+            logout_user()
+            return {'message': 'Logged out successfully'}, 200
+
+    class CurrentUserResource(Resource):
+        @login_required
+        def get(self):
+            user = current_user
+            return {
+                'id': user.id,
+                'email': user.email,
+                'roles': [role.name for role in user.roles]
+            }
+
 
 
     api.add_resource(TheatreResource, '/theatres', '/theatres/<int:theatre_id>')
     api.add_resource(ShowResource, '/shows', '/shows/<int:show_id>')
     api.add_resource(ShowtimeResource, '/showtimes', '/showtimes/<int:showtime_id>')
-    api.add_resource(BookingResource, '/bookings', '/bookings/<int:booking_id>')    
+    api.add_resource(BookingResource, '/bookings', '/bookings/<int:booking_id>')
+    api.add_resource(UserLoginResource, '/login')    
+    api.add_resource(CurrentUserResource, '/current_user')
+    api.add_resource(UserLogoutResource, '/logout')
+    api.add_resource(UserRegistrationResource, '/register')
+    
+        
+        

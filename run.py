@@ -1,5 +1,5 @@
 from app import create_app
-from app.models import db, create_default_user
+from app.models import db, ensure_admin_exists
 
 
 app = create_app()
@@ -8,5 +8,8 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        create_default_user()
+
+   # app.app_context()
+    #ensure_admin_exists()
+
     app.run(debug=True)

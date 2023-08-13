@@ -1,3 +1,5 @@
+import { logoutUser } from '../api.js';
+
 const App = {
   template: `
   <div>
@@ -16,8 +18,9 @@ const App = {
   methods: {
     
     logout() {
-      // Placeholder for logout functionality
-      console.log("Logged out!");
+      logoutUser().then(() => {
+        this.$router.push('/login');  // Redirect to login or main page after logout
+      });
     }
   }
 };

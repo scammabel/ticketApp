@@ -5,10 +5,14 @@ from datetime import datetime
 import uuid
 
 from flask_security import roles_required,login_required, login_user, logout_user, verify_password, current_user
+from flask_caching import Cache
+
+cache = Cache(config={'CACHE_TYPE': 'simple'})
 
 def register_routes(app, user_datastore):
 
     api = Api(app)
+    cache.init_app(app)
 
     @app.route('/')
     def index():
@@ -52,14 +56,17 @@ def register_routes(app, user_datastore):
 
             return {'message': 'Theatre updated successfully'}, 200
 
-        @roles_required('admin')
         def delete(self, theatre_id):
             theatre = Theatre.query.get_or_404(theatre_id)
+
+            Showtime.query.filter_by(theatre_id=theatre_id).delete()
+            
             db.session.delete(theatre)
             db.session.commit()
 
             return {'message': 'Theatre deleted successfully'}, 200
         
+        @cache.memoize(50)
         def get(self, theatre_id=None):
             if theatre_id:
                 theatre = Theatre.query.get_or_404(theatre_id)
@@ -126,6 +133,7 @@ def register_routes(app, user_datastore):
 
             return {'message': 'Show deleted successfully'}, 200
         
+        @cache.memoize(50)
         def get(self, show_id=None):
             if show_id:
                 # Fetch a specific show by ID
@@ -160,6 +168,7 @@ def register_routes(app, user_datastore):
 
             return {'message': 'Showtime created successfully', 'id': showtime.id}, 201
         
+        @cache.memoize(50)
         def get(self, showtime_id=None):
             if showtime_id:
                 showtime = Showtime.query.get(showtime_id)
@@ -295,9 +304,15 @@ def register_routes(app, user_datastore):
                 'email': user.email,
                 'roles': [role.name for role in user.roles]
             }
+    class ExportTheatreCSV(Resource):
+        def get(self, theatre_id):
+            # Trigger the Celery task to export data for the given theatre_id
+            print("temp")
+            
 
 
 
+    api.add_resource(ExportTheatreCSV, '/export/theatre/<int:theatre_id>/csv')
     api.add_resource(TheatreResource, '/theatres', '/theatres/<int:theatre_id>')
     api.add_resource(ShowResource, '/shows', '/shows/<int:show_id>')
     api.add_resource(ShowtimeResource, '/showtimes', '/showtimes/<int:showtime_id>')

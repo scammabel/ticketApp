@@ -9,7 +9,7 @@ const fetchOptions = {
   headers
 };
 
-async function fetchAPI(endpoint, method = 'GET', body) {
+export async function fetchAPI(endpoint, method = 'GET', body) {
   const options = {
     method,
     headers
@@ -70,6 +70,12 @@ export const editTheatre = async (theatreId, data) => {
 
 export const deleteTheatre = async (theatreId) => {
   return fetchAPI(`/theatres/${theatreId}`, 'DELETE');
+};
+
+export const exportTheatreToCSV = async (theatreId) => {
+  const response = await fetchAPI(`/export/theatre/${theatreId}/csv`, 'GET');
+  console.log("exportTheatreToCSV response:", response);
+  return response;
 };
 
 export const getShows = async (searchTerm = '') => {

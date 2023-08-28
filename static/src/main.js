@@ -42,7 +42,7 @@ const router = new VueRouter({
   routes
 });
 
-//Implementing a navigation guard for accessing pages based on login status and role
+//Navigation guard for accessing pages based on login status and role
 
 router.beforeEach(async (to, from, next) => {
   const userRole = await fetchUserRole();

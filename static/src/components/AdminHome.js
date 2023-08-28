@@ -20,8 +20,8 @@ const AdminHome = {
   `,
   data: function() {
     return {
-      theatres: [],  // This will store the list of theatres fetched from the backend
-      selectedTheatre: null  // This will store the ID of the selected theatre
+      theatres: [],  
+      selectedTheatre: null  
     }
   },
   methods: {
@@ -44,7 +44,7 @@ const AdminHome = {
 
     async fetchTheatres() {
       try {
-        let response = await getTheatres();  // getTheatres() should be a method from your API helpers, which returns the theatres.
+        let response = await getTheatres();  
         this.theatres = response.theatres || [];
       } catch (error) {
         console.error("Error fetching theatres:", error);

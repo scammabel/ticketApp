@@ -1,4 +1,3 @@
-// Bookings.js
 import { getUserBookings, cancelBooking, getShow, getShowtime, getAllShows, getTheatres } from '../api.js';
 
 const Bookings = {
@@ -44,7 +43,7 @@ const Bookings = {
         console.log("Initial Bookings:", response.bookings); // Log the initial bookings
 
         // Fetch all shows and create a map for quick lookup
-        const allShowsResponse = await getAllShows(); // Assuming you have an API method to fetch all shows
+        const allShowsResponse = await getAllShows();
         const allShows = allShowsResponse.shows;
         const showNameMap = {};
         allShows.forEach(show => {
@@ -52,7 +51,7 @@ const Bookings = {
         });
 
         // Fetch all theatres and create a map for quick lookup
-        const allTheatresResponse = await getTheatres(); // Assuming you have an API method to fetch all theatres
+        const allTheatresResponse = await getTheatres();
         const allTheatres = allTheatresResponse.theatres;
         const theatreNameMap = {};
         allTheatres.forEach(theatre => {

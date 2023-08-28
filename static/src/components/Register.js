@@ -1,4 +1,3 @@
-
 import { registerUser } from '../api.js';
 
 const Register = {
@@ -14,9 +13,9 @@ const Register = {
         <input type="password" v-model="password" required class="form-control" id="password">
       </div>
       <button type="submit" class="btn btn-primary">Register</button>
+      <button @click="goToLogin" class="btn btn-secondary">Already have an account? Login</button>
     </form>
   </div>`,
-
 
   data: function() {
     return {
@@ -32,6 +31,9 @@ const Register = {
       } catch (error) {
         console.error('Registration failed:', error.message);
       }
+    },
+    goToLogin() {
+        this.$router.push('/login');
     }
   },
 };

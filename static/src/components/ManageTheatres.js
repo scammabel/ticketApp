@@ -108,7 +108,7 @@ const ManageTheatres = {
         await createTheatre(this.newTheatre.name, this.newTheatre.place, this.newTheatre.capacity);
         this.fetchTheatres();
         this.showAddModal = false;
-        this.newTheatre = { name: '', place: '', capacity: '' }; // Reset form
+        this.newTheatre = { name: '', place: '', capacity: '' }; 
       } catch (error) {
         console.error("Error adding theatre:", error);
       }
@@ -131,7 +131,7 @@ const ManageTheatres = {
         });
         this.fetchTheatres();
         this.showEditModal = false;
-        this.editingTheatre = { id: null, name: '', place: '', capacity: '' }; // Reset form
+        this.editingTheatre = { id: null, name: '', place: '', capacity: '' }; 
       } catch (error) {
         console.error("Error updating theatre:", error);
       }

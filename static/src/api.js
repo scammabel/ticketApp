@@ -37,7 +37,7 @@ export async function fetchAPI(endpoint, method = 'GET', body) {
   if (contentType && contentType.indexOf("application/json") !== -1) {
     return response.json();
   } else if (response.status === 201) {
-    return { status: 201 };  // This is the key change
+    return { status: 201 };  
   } else {
     return response;
   }

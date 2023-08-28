@@ -1,4 +1,3 @@
-// BookTickets.js
 import { getShow, getAllShowtimes, bookTickets, getTheatres } from '../api.js';
 
 const BookTickets = {

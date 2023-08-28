@@ -1,5 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import RoleMixin, UserMixin
+from flask_security.utils import hash_password
+import uuid
 
 db = SQLAlchemy()
 
@@ -123,13 +125,25 @@ class Booking(db.Model):
         }
 
 
-from flask_security.utils import hash_password
+
 
 def ensure_admin_exists():
-    if not User.query.filter_by(email="admin@gmail.com").first():
+    # Check if the admin role exists, if not, create it
+    admin_role = Role.query.filter_by(name="admin").first()
+    if not admin_role:
         admin_role = Role(name="admin")
         db.session.add(admin_role)
-        admin = User(email="admin@gmail.com", password=hash_password("admin"))
+    
+    # Check if the user role exists, if not, create it
+    user_role = Role.query.filter_by(name="user").first()
+    if not user_role:
+        user_role = Role(name="user")
+        db.session.add(user_role)
+        
+    # Check if the admin user exists, if not, create it
+    if not User.query.filter_by(email="admin@gmail.com").first():
+        admin = User(username="admin", email="admin@gmail.com", password=hash_password("admin"), fs_uniquifier=str(uuid.uuid4()))
         admin.roles.append(admin_role)
         db.session.add(admin)
-        db.session.commit()
+    
+    db.session.commit()

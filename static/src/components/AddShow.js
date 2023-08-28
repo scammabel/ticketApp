@@ -67,8 +67,8 @@ const AddShowtime = {
   data: function() {
     return {
       showtimes: [],
-      shows: [], // Assuming you'll fetch this list from the API
-      theatres: [], // Assuming you'll fetch this list from the API
+      shows: [], 
+      theatres: [], 
       showAddModal: false,
       showDeleteModal: false,
       newShowtime: {
@@ -134,7 +134,7 @@ const AddShowtime = {
         this.newShowtime.start_time += ":00";
         this.newShowtime.end_time += ":00";
 
-        await createShowtime(this.newShowtime); // Use the createShowtime function from api.js
+        await createShowtime(this.newShowtime); 
         this.fetchShowtimes();
         this.showAddModal = false;
         this.newShowtime = { show_id: null, theatre_id: null, start_time: '', end_time: '' };
@@ -152,7 +152,7 @@ const AddShowtime = {
     },
     async deleteShowtime() {
       try {
-        await deleteShowtime(this.deletingShowtimeId); // Use the deleteShowtime function from api.js
+        await deleteShowtime(this.deletingShowtimeId); 
         this.fetchShowtimes();
         this.showDeleteModal = false;
         this.deletingShowtimeId = null; // Reset

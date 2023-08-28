@@ -1,11 +1,17 @@
 from flask import Flask, request, render_template
 from flask_restful import Api, Resource, reqparse
-from .models import db, Theatre, Show, Showtime, Booking, User, Role
-from datetime import datetime
+from flask_security import login_required, login_user, logout_user, verify_password, current_user
+from flask_caching import Cache
+from flask_mail import Mail, Message
+from sqlalchemy import extract
+
+from .models import db, Theatre, Show, Showtime, Booking, User, Role, roles_users
+from .celery_config import celery
+
+from datetime import datetime, date, timedelta
 import uuid
 
-from flask_security import roles_required,login_required, login_user, logout_user, verify_password, current_user
-from flask_caching import Cache
+
 
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 
@@ -13,6 +19,7 @@ def register_routes(app, user_datastore):
 
     api = Api(app)
     cache.init_app(app)
+    mail = Mail(app)
 
     @app.route('/')
     def index():
@@ -60,7 +67,7 @@ def register_routes(app, user_datastore):
             theatre = Theatre.query.get_or_404(theatre_id)
 
             Showtime.query.filter_by(theatre_id=theatre_id).delete()
-            
+
             db.session.delete(theatre)
             db.session.commit()
 
@@ -217,8 +224,8 @@ def register_routes(app, user_datastore):
                     return {'message': 'Unauthorized'}, 403
                 return {'booking': booking.serialize()}
             else:
-                # Fetch all bookings for the logged-in user
-                bookings = Booking.query.filter_by(user_id=current_user.id).all()
+                # Fetch all bookings for the logged-in user except the cancelled ones
+                bookings = Booking.query.filter_by(user_id=current_user.id).filter(Booking.status != 'cancelled').all()
                 return {'bookings': [booking.serialize() for booking in bookings]}
 
         def delete(self, booking_id):          
@@ -304,11 +311,64 @@ def register_routes(app, user_datastore):
                 'email': user.email,
                 'roles': [role.name for role in user.roles]
             }
+        
+    @celery.task
+    def send_daily_reminders():
+        with app.app_context():
+            users = User.query.join(roles_users).join(Role).filter(Role.name == 'user').all()
+            one_day_ago = datetime.now() - timedelta(days=1)
+
+            for user in users:
+                recent_booking = Booking.query.filter_by(user_id=user.id).filter(Booking.booking_time > one_day_ago).first()
+
+                if not recent_booking:
+                    msg = Message("Reminder: Book a Show!", recipients=[user.email])
+                    msg.body = "Hello! Please visit our platform and book a show."
+                    mail.send(msg)
+
+    @celery.task
+    def send_monthly_report():
+        with app.app_context():
+            users = User.query.all()
+            current_month = datetime.now().month
+            last_month = current_month - 1 if current_month != 1 else 12
+
+            for user in users:
+                bookings = Booking.query.filter_by(user_id=user.id).filter(
+                    extract('month', Booking.booking_time) == last_month).all()
+
+                booking_details = "\n".join([f"Show: {booking.showtime.show.name}, Date: {booking.booking_time.date()}" for booking in bookings])
+                
+                msg = Message("Your Monthly Booking Report", recipients=[user.email])
+                msg.body = f"Hello {user.email}!\nHere's your monthly report:\n{booking_details}"
+                mail.send(msg)
+
+    @celery.task(name='export_theatre_to_csv_task')
+    def export_theatre_to_csv(theatre_id):
+        with app.app_context():
+            # All your current logic remains here
+            shows = db.session.query(Show).join(Showtime).filter(Showtime.theatre_id == theatre_id).all()
+            
+            # Convert shows to CSV format
+            csv_data = "Show ID, Show Name, Rating\n"
+            for show in shows:
+                csv_data += f"{show.id}, {show.name}, {show.rating}\n"
+            
+            # Save the CSV to a file
+            filename = f"theatre_{theatre_id}_export.csv"
+            with open(filename, 'w') as f:
+                f.write(csv_data)
+
+            # Notify the admin (or user) that the export is done
+            print(f"Export completed for theatre {theatre_id}! File: {filename}")
+
+
     class ExportTheatreCSV(Resource):
         def get(self, theatre_id):
+            app.logger.info(f"Invoking export_theatre_to_csv with theatre_id: {theatre_id}")
             # Trigger the Celery task to export data for the given theatre_id
-            print("temp")
-            
+            celery.send_task('export_theatre_to_csv_task', args=[theatre_id])
+            return {"message": "Export process started."}
 
 
 
@@ -321,6 +381,3 @@ def register_routes(app, user_datastore):
     api.add_resource(CurrentUserResource, '/current_user')
     api.add_resource(UserLogoutResource, '/logout')
     api.add_resource(UserRegistrationResource, '/register')
-    
-        
-        

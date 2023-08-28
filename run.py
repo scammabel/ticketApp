@@ -1,9 +1,7 @@
 from app import create_app
 from app.models import db, ensure_admin_exists
 
-
-app = create_app()
-
+app, _ = create_app()
 
 if __name__ == '__main__':
     with app.app_context():

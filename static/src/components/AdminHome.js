@@ -32,7 +32,7 @@ const AdminHome = {
       if (this.selectedTheatre) {
         try {
           let response = await exportTheatreToCSV(this.selectedTheatre);
-          alert("Export process started. You will be notified once it's done.");
+          alert("Export process Successful");
         } catch (error) {
           console.error("Error exporting theatre data:", error);
           alert(error.message);

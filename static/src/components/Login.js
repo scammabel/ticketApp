@@ -1,5 +1,4 @@
-
-import { loginUser } from '../api.js';
+import { loginUser} from '../api.js';
 
 const Login = {
   template: `<div>
@@ -14,9 +13,9 @@ const Login = {
         <input type="password" v-model="password" required class="form-control" id="password">
       </div>
       <button type="submit" class="btn btn-primary">Login</button>
+      <button @click="goToRegister" class="btn btn-secondary">Don't have an account? Register</button>
     </form>
   </div>`,
-
 
   data: function() {
     return {
@@ -26,14 +25,20 @@ const Login = {
   },
   methods: {
     async login() {
-        try {
-          const user = await loginUser(this.email, this.password);
-          //Remove or comment out the following lines:
-          this.$router.push('/');
-        } catch (error) {
-          console.error('Login failed:', error.message);
-        }
+      try {
+        const user = await loginUser(this.email, this.password);
+        this.$router.push('/');
+      } catch (error) {
+        const errorMessage = error && error.response && error.response.data && error.response.data.message 
+                             ? error.response.data.message 
+                             : 'Login failed! Please make sure you have an account and the credentials are correct ';
+        alert(errorMessage);
+        console.error('Login failed:', error.message);
       }
+    },
+    goToRegister() {
+        this.$router.push('/register');
+    }
   },
 };
 

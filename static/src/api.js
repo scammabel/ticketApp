@@ -24,14 +24,23 @@ export async function fetchAPI(endpoint, method = 'GET', body) {
   if (!response.ok) {
     let errorMessage = 'An error occurred';
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.message;
+      if (response.status !== 201 && response.status !== 204) {
+        const errorData = await response.json();
+        errorMessage = errorData.message;
+      }
     } catch (err) {
     }
     throw new Error(errorMessage);
   }
 
-  return response.json();
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.indexOf("application/json") !== -1) {
+    return response.json();
+  } else if (response.status === 201) {
+    return { status: 201 };  // This is the key change
+  } else {
+    return response;
+  }
 }
 
 // Register a new user

@@ -11,21 +11,19 @@ from .celery_config import celery
 from datetime import datetime, date, timedelta
 import uuid
 
-
-
-cache = Cache(config={'CACHE_TYPE': 'simple'})
+cache = Cache(config={'CACHE_TYPE': 'simple'})          #For Redis Caching
 
 def register_routes(app, user_datastore):
 
-    api = Api(app)
+    api = Api(app)                                      #initializing objects
     cache.init_app(app)
     mail = Mail(app)
 
     @app.route('/')
     def index():
-        return render_template('index.html')
+        return render_template('index.html')            #entry point for frontend
 
-    class TheatreResource(Resource):
+    class TheatreResource(Resource):                    #For Theater related operations
 
         def post(self):
             parser = reqparse.RequestParser()
@@ -83,7 +81,7 @@ def register_routes(app, user_datastore):
                 return {'theatres': [theatre.serialize() for theatre in theatres]}
 
     
-    class ShowResource(Resource):
+    class ShowResource(Resource):                       #For Show related operations
         
         def post(self):
             parser = reqparse.RequestParser()
@@ -155,7 +153,7 @@ def register_routes(app, user_datastore):
                     shows = Show.query.all()
                 return {'shows': [show.serialize() for show in shows]}
 
-    class ShowtimeResource(Resource):
+    class ShowtimeResource(Resource):                   #For showtime related operations
         
         def post(self):
             parser = reqparse.RequestParser()
@@ -196,7 +194,8 @@ def register_routes(app, user_datastore):
             else:
                 return {'message': 'Showtime not found'}, 404
 
-    class BookingResource(Resource):
+
+    class BookingResource(Resource):                       #For Bookings related operations
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('showtime_id', type=int, required=True, help="Showtime ID cannot be blank!")
@@ -219,19 +218,17 @@ def register_routes(app, user_datastore):
         def get(self, booking_id=None):
             if booking_id:
                 booking = Booking.query.get_or_404(booking_id)
-                # Ensure the booking belongs to the logged-in user
                 if booking.user_id != current_user.id:
                     return {'message': 'Unauthorized'}, 403
                 return {'booking': booking.serialize()}
             else:
-                # Fetch all bookings for the logged-in user except the cancelled ones
+                # Fetch all bookings for the logged-in user
                 bookings = Booking.query.filter_by(user_id=current_user.id).filter(Booking.status != 'cancelled').all()
                 return {'bookings': [booking.serialize() for booking in bookings]}
 
         def delete(self, booking_id):          
             booking = Booking.query.get_or_404(booking_id)
 
-            # Ensure the booking belongs to the logged-in user
             if booking.user_id != current_user.id:
                 return {'message': 'Unauthorized'}, 403
 
@@ -242,7 +239,7 @@ def register_routes(app, user_datastore):
         
 
 
-    class UserRegistrationResource(Resource):
+    class UserRegistrationResource(Resource):           #For the User Registration using Flask-Security
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('email', required=True, help="Email cannot be blank!")
@@ -250,7 +247,6 @@ def register_routes(app, user_datastore):
             
             args = parser.parse_args()
             
-            # Check if user already exists
             existing_user = User.query.filter_by(email=args['email']).first()
             if existing_user:
                 return {'message': 'A user with that email already exists'}, 400
@@ -258,10 +254,8 @@ def register_routes(app, user_datastore):
             # Extract the username from the email
             username = args['email'].split('@')[0]
             
-            # Generate a unique fs_uniquifier using UUID
             fs_uniquifier = str(uuid.uuid4())
             
-            # Create a new user
             user = User(username=username, email=args['email'], password=args['password'], fs_uniquifier=fs_uniquifier)
 
             default_role = Role.query.filter_by(name='user').first()
@@ -279,7 +273,7 @@ def register_routes(app, user_datastore):
 
 
 
-    class UserLoginResource(Resource):
+    class UserLoginResource(Resource):                  #For the User login using Flask-Security
         def post(self):
             parser = reqparse.RequestParser()
             parser.add_argument('email', required=True, help="Email cannot be blank!")
@@ -296,7 +290,7 @@ def register_routes(app, user_datastore):
                 return {'message': 'Invalid email or password'}, 401
 
  
-    class UserLogoutResource(Resource):
+    class UserLogoutResource(Resource):                  #For User Logout Funtionality
         @login_required
         def post(self):
             logout_user()
@@ -311,7 +305,7 @@ def register_routes(app, user_datastore):
                 'email': user.email,
                 'roles': [role.name for role in user.roles]
             }
-        
+                    # Celery Jobs functions
     @celery.task
     def send_daily_reminders():
         with app.app_context():
@@ -346,7 +340,7 @@ def register_routes(app, user_datastore):
     @celery.task(name='export_theatre_to_csv_task')
     def export_theatre_to_csv(theatre_id):
         with app.app_context():
-            # All your current logic remains here
+
             shows = db.session.query(Show).join(Showtime).filter(Showtime.theatre_id == theatre_id).all()
             
             # Convert shows to CSV format
